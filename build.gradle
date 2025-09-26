@@ -1,0 +1,59 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.warren'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+    google()
+    maven {
+        // PowBot releases repository
+        url = uri('https://repo.powbot.org/releases')
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ['src/main/java']
+    }
+    test {
+        java.srcDirs = ['test']
+        resources.srcDirs = ['test-resources']
+    }
+}
+
+dependencies {
+    api 'org.powbot:client-sdk:3+'
+    api 'org.powbot:client-sdk-loader:3+'
+
+    implementation 'com.google.guava:guava:31.1-jre'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+java {
+    // toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'powbot-bt'
+                description = 'Behavior tree builder for powbot'
+            }
+        }
+    }
+    repositories {
+        // publish with: ./gradlew publishToMavenLocal
+        mavenLocal()
+        // add another "maven { url = uri(...)" here if you use a private repo
+    }
+}
