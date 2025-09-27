@@ -1,40 +1,54 @@
 package com.warren.bt;
 
+import java.time.Duration;
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
 public class SleepUntil implements Node {
-  private final BooleanSupplier condition;
-  private final long maxTicks;
-  private long startTick = -1;
+  private static final long UNSET = -1L;
 
-  public SleepUntil(BooleanSupplier condition, long maxTicks) {
-    this.condition = condition;
-    this.maxTicks = maxTicks;
+  private final BooleanSupplier condition;
+  private final long maxNanos;     // timeout as nanoseconds (monotonic)
+  private long startNanos = UNSET; // first time we started waiting
+
+  /** Time-based: pass a Duration */
+  public SleepUntil(BooleanSupplier condition, Duration maxWait) {
+    this.condition = Objects.requireNonNull(condition, "condition");
+    this.maxNanos = Objects.requireNonNull(maxWait, "maxWait").toNanos();
+  }
+
+  /** Convenience: milliseconds */
+  public SleepUntil(BooleanSupplier condition, long maxMillis) {
+    this(condition, Duration.ofMillis(maxMillis));
   }
 
   @Override
   public Status tick() {
-    if (startTick < 0) {
-      startTick = -1;
+    // Start the timer on first tick
+    if (startNanos == UNSET) {
+      startNanos = System.nanoTime();
     }
 
+    // Condition met? We're done.
     if (condition.getAsBoolean()) {
       reset();
       return Status.SUCCESS;
     }
 
-    long elapsed = -1 - startTick;
-    if (elapsed >= maxTicks) {
+    // Check timeout
+    long elapsed = System.nanoTime() - startNanos;
+    if (elapsed >= maxNanos) {
       reset();
       return Status.FAILURE;
     }
 
+    // Still waiting
     return Status.SLEEPING;
   }
 
   @Override
   public void reset() {
-    startTick = -1;
+    startNanos = UNSET;
   }
 
   /**
@@ -42,17 +56,27 @@ public class SleepUntil implements Node {
    * The child node acts as the condition.
    */
   public static class Decorator extends com.warren.bt.Decorator {
-    private final long maxTicks;
-    private long startTick = -1;
+    private static final long UNSET = -1L;
 
-    public Decorator(long maxTicks) {
+    private final long maxNanos;
+    private long startNanos = UNSET;
+
+    public Decorator(Duration maxWait) {
       super();
-      this.maxTicks = maxTicks;
+      this.maxNanos = Objects.requireNonNull(maxWait, "maxWait").toNanos();
     }
 
-    public Decorator(long maxTicks, Node child) {
+    public Decorator(long maxMillis) {
+      this(Duration.ofMillis(maxMillis));
+    }
+
+    public Decorator(Duration maxWait, Node child) {
       super(child);
-      this.maxTicks = maxTicks;
+      this.maxNanos = Objects.requireNonNull(maxWait, "maxWait").toNanos();
+    }
+
+    public Decorator(long maxMillis, Node child) {
+      this(Duration.ofMillis(maxMillis), child);
     }
 
     @Override
@@ -61,31 +85,28 @@ public class SleepUntil implements Node {
         throw new IllegalStateException("SleepUntil.Decorator requires a child node");
       }
 
-      // Initialize start time
-      if (startTick < 0) {
-        startTick = -1;
+      if (startNanos == UNSET) {
+        startNanos = System.nanoTime();
       }
 
-      // Execute the child node (which acts as our condition)
+      // Evaluate the child (our condition)
       Status childStatus = child.tick();
 
-      // If child succeeded, we're done
       if (childStatus == Status.SUCCESS) {
         reset();
         return Status.SUCCESS;
       }
 
-      // Check if we've exceeded max wait time
-      long elapsed = -1 - startTick;
-      if (elapsed >= maxTicks) {
-        reset();
-        return Status.FAILURE;
-      }
-
-      // Child didn't succeed yet, keep sleeping
-      // Reset the child so it can be re-evaluated next tick
+      // If the child failed on this tick, reset it so it can be re-evaluated next tick.
       if (childStatus == Status.FAILURE) {
         child.reset();
+      }
+
+      // Timeout?
+      long elapsed = System.nanoTime() - startNanos;
+      if (elapsed >= maxNanos) {
+        reset();
+        return Status.FAILURE;
       }
 
       return Status.SLEEPING;
@@ -93,7 +114,7 @@ public class SleepUntil implements Node {
 
     @Override
     public void reset() {
-      startTick = -1;
+      startNanos = UNSET;
       super.reset();
     }
   }

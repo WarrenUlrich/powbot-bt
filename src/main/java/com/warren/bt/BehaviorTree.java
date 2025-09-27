@@ -3,7 +3,38 @@ package com.warren.bt;
 import java.util.Stack;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import org.powbot.api.Actionable;
+import org.powbot.api.Area;
+import org.powbot.api.Filter;
+import org.powbot.api.Interactable;
+import org.powbot.api.Locatable;
+import org.powbot.api.Tile;
+import org.powbot.api.Viewable;
+import org.powbot.api.loadout.InventoryLoadoutBuilder;
+import org.powbot.api.loadout.LoadoutBuilder;
+import org.powbot.api.rt4.Actor;
+import org.powbot.api.rt4.Bank;
+import org.powbot.api.rt4.Camera;
+import org.powbot.api.rt4.Chat;
+import org.powbot.api.rt4.Combat;
+import org.powbot.api.rt4.Game;
+import org.powbot.api.rt4.Inventory;
+import org.powbot.api.rt4.Item;
+import org.powbot.api.rt4.Magic;
+import org.powbot.api.rt4.Movement;
+import org.powbot.api.rt4.Npc;
+import org.powbot.api.rt4.Player;
+import org.powbot.api.rt4.Players;
+import org.powbot.api.rt4.Prayer;
+import org.powbot.api.rt4.stream.item.BankItemStream;
+import org.powbot.api.rt4.stream.item.InventoryItemStream;
+import org.powbot.api.waiter.InteractingWithNpcWaiter;
+import org.powbot.api.waiter.Waiter;
+import org.powbot.dax.teleports.utils.ItemFilters;
 
 public class BehaviorTree {
   private final Node root;
@@ -248,6 +279,306 @@ public class BehaviorTree {
       } else {
         nodeStack.push(node);
       }
+    }
+
+    // powbot specific
+    public Builder moveTo(Supplier<Locatable> locatableSupplier) {
+      return condition(() -> {
+        var locatable = locatableSupplier.get();
+        if (locatable == null)
+          return false;
+
+        return Movement.moveTo(locatable).getSuccess();
+      });
+    }
+
+    public Builder stepTo(Supplier<Locatable> locatableSupplier) {
+      return condition(() -> {
+        var locatable = locatableSupplier.get();
+        if (locatable == null)
+          return false;
+
+        return Movement.step(locatable);
+      });
+    }
+
+    public Builder isBankOpen() {
+      return condition(Bank::opened);
+    }
+
+    public Builder openBank() {
+      return condition(Bank::open);
+    }
+
+    public Builder inventoryContains(Function<InventoryItemStream, InventoryItemStream> func) {
+      return condition(() -> {
+        return func.apply(Inventory.stream()).isNotEmpty();
+      });
+    }
+
+    public Builder bankContains(Function<BankItemStream, BankItemStream> func) {
+      //@formatter:off
+      return builder()
+        .sequence()
+          .isBankOpen()
+          .condition(() -> {
+            return func.apply(Bank.stream()).isNotEmpty();
+          })
+        .end();
+      //@formatter:on
+    }
+
+    public Builder withdraw(Function<BankItemStream, Item> func, int amount) {
+      //@formatter:off
+      return builder()
+          .sequence()
+            .isBankOpen()
+            .condition(() -> {
+              return Bank.withdraw(func.apply(Bank.stream()), amount);
+            })
+          .end();
+      //@formatter:on
+    }
+
+    public Builder depositAll(Function<InventoryItemStream, InventoryItemStream> func) {
+      //@formatter:off
+      return builder()
+        .sequence()
+          .isBankOpen()
+          .condition(() -> {
+            var items = func.apply(Inventory.stream()).list();
+            if (items.isEmpty())
+              return true;
+            
+            var counts = items.stream().collect(
+              Collectors.groupingBy(
+                item -> item.getId(),
+                Collectors.summingInt(item -> item.getStack())
+              )
+            );
+
+            for (var e : counts.entrySet()) {
+              int id = e.getKey();
+              int amount = e.getValue();
+              if (amount <= 0) continue; 
+              
+              if (!Bank.deposit(id, amount))
+                return false;
+            }
+            return true;
+          })
+        .end();
+      //@formatter:on
+    }
+
+    public Builder inViewport(Supplier<? extends Viewable> actorSupplier) {
+      return condition(() -> {
+        var actor = actorSupplier.get();
+        if (actor == null)
+          return false;
+
+        return actor.inViewport();
+      });
+    }
+
+    public Builder click(Supplier<? extends Interactable> actorSupplier) {
+      //@formatter:off
+      return builder()
+        .sequence()
+          .inViewport(actorSupplier)
+          .condition(() -> {
+            var actor = actorSupplier.get();
+            if (actor == null)
+              return false;
+            
+            return actor.click();
+          })
+        .end();
+      //@formatter:on
+    }
+
+    public Builder interact(Supplier<? extends Interactable> actorSupplier, String action) {
+      //@formatter:off
+      return builder()
+        .sequence()
+          .inViewport(actorSupplier)
+          .condition(() -> {
+            var actor = actorSupplier.get();
+            if (actor == null)
+              return false;
+            
+            return actor.interact(action);
+          })
+        .end();
+      //@formatter:on
+    }
+
+    public Builder turnCameraTo(Supplier<? extends Locatable> locatableSupplier) {
+      return condition(() -> {
+        var locatable = locatableSupplier.get();
+        if (locatable == null)
+          return false;
+
+        Camera.turnTo(locatable);
+        return true;
+      });
+    }
+
+    public Builder changeTab(Game.Tab tab) {
+      return condition(() -> {
+        return Game.tab(tab);
+      });
+    }
+
+    public Builder chatting() {
+      return condition(Chat::chatting);
+    }
+
+    public Builder canContinueChat() {
+      return condition(Chat::canContinue);
+    }
+
+    public Builder clickContinue() {
+      return condition(Chat::clickContinue);
+    }
+
+    public Builder continueChat(String... dialogs) {
+      return condition(() -> Chat.continueChat(dialogs));
+    }
+
+    public Builder completeChat(String... dialogs) {
+      return condition(() -> Chat.completeChat(dialogs));
+    }
+
+    public Builder autoRetaliate(boolean value) {
+      return condition(() -> Combat.autoRetaliate(value));
+    }
+
+    public Builder wildernessLevel(int level) {
+      return condition(() -> Combat.wildernessLevel() >= level);
+    }
+
+    public Builder combatStyle(Combat.Style style) {
+      return condition(() -> style.equals(Combat.style()));
+    }
+
+    public Builder combatStyle(Supplier<Combat.Style> styleSupplier) {
+      return condition(() -> {
+        var style = styleSupplier.get();
+        if (style == null)
+          return false;
+
+        return style.equals(Combat.style());
+      });
+    }
+
+    public Builder setCombatStyle(Combat.Style style) {
+      return condition(() -> Combat.style(style));
+    }
+
+    public Builder setCombatStyle(Supplier<Combat.Style> styleSupplier) {
+      return condition(() -> {
+        var style = styleSupplier.get();
+        return Combat.style(style);
+      });
+    }
+
+    public Builder healthPercent(double percentage) {
+      return condition(() -> Combat.healthPercent() >= percentage);
+    }
+
+    public Builder health(int health) {
+      return condition(() -> Combat.health() >= health);
+    }
+
+    public Builder health(IntSupplier healthSupplier) {
+      return condition(() -> Combat.health() >= healthSupplier.getAsInt());
+    }
+
+    public Builder prayersActive() {
+      return condition(() -> {
+        return Prayer.prayersActive();
+      });
+    }
+
+    public Builder prayerActive(Prayer.Effect effect) {
+      return condition(() -> {
+        return Prayer.prayerActive(effect);
+      });
+    }
+
+    public Builder prayerActive(Supplier<Prayer.Effect> effect) {
+      return condition(() -> {
+        return Prayer.prayerActive(effect.get());
+      });
+    }
+
+    public Builder prayerPoints(int points) {
+      return condition(() -> {
+        return Prayer.prayerPoints() >= points;
+      });
+    }
+
+    public Builder prayerPoints(IntSupplier pointsSupplier) {
+      return condition(() -> {
+        return Prayer.prayerPoints() >= pointsSupplier.getAsInt();
+      });
+    }
+
+    public Builder casting(Supplier<Magic.Spell> spellSupplier) {
+      return condition(() -> {
+        return spellSupplier.get().casting();
+      });
+    }
+
+    public Builder castSpell(Supplier<Magic.Spell> spellSupplier) {
+      return condition(() -> {
+        return spellSupplier.get().cast();
+      });
+    }
+
+    public Builder castSpell(Supplier<Magic.Spell> spellSupplier, String action) {
+      return condition(() -> {
+        return spellSupplier.get().cast(action);
+      });
+    }
+
+    public Builder castSpell(Supplier<? extends Interactable> interactableSupplier,
+        Supplier<Magic.Spell> spellSupplier) {
+      //@formatter:off
+      return builder()
+        .sequence()
+          .castSpell(spellSupplier)
+          .casting(spellSupplier)
+          .condition(() -> {
+            var interactable = interactableSupplier.get();
+            return interactable.click();
+          })
+        .end();
+      //@formatter:on
+    }
+
+    public Builder inInstance() {
+      return condition(() -> {
+        return true;
+      });
+    }
+
+    public Builder on(Supplier<Tile> tileSupplier) {
+      return condition(() -> {
+        var localPlayer = Players.local();
+        return localPlayer.tile().equals(tileSupplier.get());
+      });
+    }
+
+    public Builder within(Supplier<Area> areaSupplier) {
+      return condition(() -> {
+        var area = areaSupplier.get();
+        if (area == null)
+          return false;
+
+        return area.contains(Players.local());
+      });
     }
   }
 }
