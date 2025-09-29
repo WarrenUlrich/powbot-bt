@@ -307,13 +307,10 @@ public class BehaviorTree {
       return condition(() -> Inventory.dropAll(filter));
     }
 
-    public Builder moveTo(Supplier<Locatable> locatableSupplier) {
+    public Builder moveTo(Supplier<Movement.Builder> movementSupplier) {
       return condition(() -> {
-        var locatable = locatableSupplier.get();
-        if (locatable == null)
-          return false;
-
-        return Movement.moveTo(locatable).getSuccess();
+        var movement = movementSupplier.get();
+        return movement.move().getSuccess();
       });
     }
 
@@ -647,10 +644,22 @@ public class BehaviorTree {
       });
     }
 
-    public Builder sleepUntilAnimating(long millis) {
-      return sleepUntil(() -> {
-        return Players.local().animation() != -1;
-      }, millis);
+    public Builder interacting() {
+      return condition(() -> {
+        return !Players.local().interacting().equals(Actor.getNil());
+      });
+    }
+
+    public Builder interacting(Supplier<? extends Actor<?>> actorSupplier) {
+      return condition(() -> {
+        return Players.local().interacting().equals(actorSupplier.get());
+      });
+    }
+
+    public Builder alive(Supplier<? extends Actor<?>> actorSupplier) {
+      return condition(() -> {
+        return actorSupplier.get().alive();
+      });
     }
   }
 }
