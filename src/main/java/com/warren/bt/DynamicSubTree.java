@@ -1,9 +1,10 @@
 package com.warren.bt;
 
-
 import java.util.function.Supplier;
 
-/** Re-evaluates which subtree to run on every tick. */
+/** Re-evaluates which subtree to run on every tick.
+ *  Assumes Node has only tick() and reset().
+ */
 public class DynamicSubTree implements Node {
   private final String name;
   private final Supplier<Node> nodeSupplier;
@@ -19,33 +20,36 @@ public class DynamicSubTree implements Node {
 
   @Override
   public Status tick() {
+    // Choose the node to run *this* tick.
     Node next = nodeSupplier.get();
-    if (next == null) return Status.FAILURE;
 
+    // If no subtree is available now, end any previous one and fail.
+    if (next == null) {
+      if (current != null) {
+        current.reset();
+        current = null;
+      }
+      return Status.FAILURE;
+    }
+
+    // If the chosen subtree instance changed, reset the previous one.
     if (current != next) {
       if (current != null) {
-        current.onEnd();
         current.reset();
       }
       current = next;
-      current.onStart();
     }
+
+    // Delegate to the active child.
     return current.tick();
   }
 
   @Override
   public void reset() {
-    if (current != null) current.reset();
-  }
-
-  @Override
-  public void onStart() {
-    if (current != null) current.onStart();
-  }
-
-  @Override
-  public void onEnd() {
-    if (current != null) current.onEnd();
+    if (current != null) {
+      current.reset();
+      current = null;
+    }
   }
 
   @Override

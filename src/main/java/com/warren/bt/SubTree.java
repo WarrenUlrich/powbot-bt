@@ -2,6 +2,9 @@ package com.warren.bt;
 
 import java.util.function.Supplier;
 
+/** Wraps another node built lazily from a supplier.
+ *  Assumes Node has only tick() and reset().
+ */
 public class SubTree implements Node {
   private final String name;
   private final Supplier<Node> treeSupplier;
@@ -14,9 +17,12 @@ public class SubTree implements Node {
 
   @Override
   public Status tick() {
+    // Lazily create the subtree on first tick.
     if (tree == null) {
       tree = treeSupplier.get();
-      tree.onStart();
+      if (tree == null) {
+        return Status.FAILURE;
+      }
     }
 
     return tree.tick();
@@ -26,20 +32,7 @@ public class SubTree implements Node {
   public void reset() {
     if (tree != null) {
       tree.reset();
-    }
-  }
-
-  @Override
-  public void onStart() {
-    if (tree != null) {
-      tree.onStart();
-    }
-  }
-
-  @Override
-  public void onEnd() {
-    if (tree != null) {
-      tree.onEnd();
+      tree = null; // allow rebuilding after a reset
     }
   }
 

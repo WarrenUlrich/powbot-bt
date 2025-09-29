@@ -6,28 +6,34 @@ plugins {
 group = 'com.warren'
 version = '0.1.0'
 
-repositories {
-    mavenCentral()
-    google()
-    maven {
-        // PowBot releases repository
-        url = uri('https://repo.powbot.org/releases')
-    }
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(17) } // or 11
+    withSourcesJar()
+    withJavadocJar()
 }
 
-sourceSets {
-    main {
-        java.srcDirs = ['src/main/java']
+repositories {
+    // PowBot first; allow snapshots
+    maven {
+        url = uri('https://repo.powbot.org/releases')
+        metadataSources {
+            mavenPom()
+            artifact()
+        }
     }
-    test {
-        java.srcDirs = ['test']
-        resources.srcDirs = ['test-resources']
-    }
+    mavenCentral()
+    google()
 }
 
 dependencies {
-    api 'org.powbot:client-sdk:3+'
-    api 'org.powbot:client-sdk-loader:3+'
+    // Use api if your library exposes PowBot types; otherwise switch to implementation
+    api('org.powbot:client-sdk:3.0.0-SNAPSHOT') { changing = true }
+    api('org.powbot:client-sdk-loader:3.0.0-SNAPSHOT') { changing = true }
+
+    // Kotlin runtime only (no Kotlin plugin required)
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.9.25')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
 
     implementation 'com.google.guava:guava:31.1-jre'
     implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
@@ -35,10 +41,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
 }
 
-java {
-    // toolchain { languageVersion = JavaLanguageVersion.of(17) }
-    withSourcesJar()
-    withJavadocJar()
+// Keep dynamic/changing versions fresh
+configurations.all {
+    resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
 publishing {
@@ -54,6 +60,5 @@ publishing {
     repositories {
         // publish with: ./gradlew publishToMavenLocal
         mavenLocal()
-        // add another "maven { url = uri(...)" here if you use a private repo
     }
 }

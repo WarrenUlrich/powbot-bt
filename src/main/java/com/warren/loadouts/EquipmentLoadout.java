@@ -11,6 +11,7 @@ public class EquipmentLoadout implements ItemLoadout {
   private EnumMap<Equipment.Slot, ItemEntry> required;
 
   public EquipmentLoadout() {
+    
   }
 
   public EquipmentLoadout(Map<Equipment.Slot, ItemEntry> entries) {

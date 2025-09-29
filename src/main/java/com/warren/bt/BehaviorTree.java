@@ -1,9 +1,11 @@
 package com.warren.bt;
 
+import java.time.Duration;
 import java.util.Stack;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -12,10 +14,9 @@ import org.powbot.api.Area;
 import org.powbot.api.Filter;
 import org.powbot.api.Interactable;
 import org.powbot.api.Locatable;
+import org.powbot.api.Nameable;
 import org.powbot.api.Tile;
 import org.powbot.api.Viewable;
-import org.powbot.api.loadout.InventoryLoadoutBuilder;
-import org.powbot.api.loadout.LoadoutBuilder;
 import org.powbot.api.rt4.Actor;
 import org.powbot.api.rt4.Bank;
 import org.powbot.api.rt4.Camera;
@@ -27,12 +28,12 @@ import org.powbot.api.rt4.Item;
 import org.powbot.api.rt4.Magic;
 import org.powbot.api.rt4.Movement;
 import org.powbot.api.rt4.Npc;
+import org.powbot.api.rt4.Npcs;
 import org.powbot.api.rt4.Player;
 import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
 import org.powbot.api.rt4.stream.item.BankItemStream;
 import org.powbot.api.rt4.stream.item.InventoryItemStream;
-import org.powbot.api.waiter.InteractingWithNpcWaiter;
 import org.powbot.api.waiter.Waiter;
 import org.powbot.dax.teleports.utils.ItemFilters;
 
@@ -281,7 +282,31 @@ public class BehaviorTree {
       }
     }
 
-    // powbot specific
+    public Builder inventoryFull() {
+      return condition(() -> Inventory.isFull());
+    }
+
+    public Builder inventoryEmpty() {
+      return condition(() -> Inventory.isEmpty());
+    }
+
+    public Builder inventoryContains(Function<InventoryItemStream, InventoryItemStream> func) {
+      return condition(() -> {
+        return func.apply(Inventory.stream()).isNotEmpty();
+      });
+    }
+
+    public Builder drop(Function<InventoryItemStream, InventoryItemStream> func) {
+      return condition(() -> {
+        var items = func.apply(Inventory.stream()).list();
+        return Inventory.drop(items);
+      });
+    }
+
+    public Builder dropAll(Predicate<Item> filter) {
+      return condition(() -> Inventory.dropAll(filter));
+    }
+
     public Builder moveTo(Supplier<Locatable> locatableSupplier) {
       return condition(() -> {
         var locatable = locatableSupplier.get();
@@ -310,64 +335,55 @@ public class BehaviorTree {
       return condition(Bank::open);
     }
 
-    public Builder inventoryContains(Function<InventoryItemStream, InventoryItemStream> func) {
-      return condition(() -> {
-        return func.apply(Inventory.stream()).isNotEmpty();
-      });
-    }
-
     public Builder bankContains(Function<BankItemStream, BankItemStream> func) {
       //@formatter:off
-      return builder()
-        .sequence()
-          .isBankOpen()
-          .condition(() -> {
-            return func.apply(Bank.stream()).isNotEmpty();
-          })
-        .end();
+      return sequence()
+              .isBankOpen()
+              .condition(() -> {
+                return func.apply(Bank.stream()).isNotEmpty();
+              })
+            .end();
       //@formatter:on
     }
 
     public Builder withdraw(Function<BankItemStream, Item> func, int amount) {
       //@formatter:off
-      return builder()
-          .sequence()
-            .isBankOpen()
-            .condition(() -> {
-              return Bank.withdraw(func.apply(Bank.stream()), amount);
-            })
-          .end();
+      return sequence()
+              .isBankOpen()
+              .condition(() -> {
+                return Bank.withdraw(func.apply(Bank.stream()), amount);
+              })
+            .end();
       //@formatter:on
     }
 
     public Builder depositAll(Function<InventoryItemStream, InventoryItemStream> func) {
       //@formatter:off
-      return builder()
-        .sequence()
-          .isBankOpen()
-          .condition(() -> {
-            var items = func.apply(Inventory.stream()).list();
-            if (items.isEmpty())
-              return true;
-            
-            var counts = items.stream().collect(
-              Collectors.groupingBy(
-                item -> item.getId(),
-                Collectors.summingInt(item -> item.getStack())
-              )
-            );
+      return sequence()
+              .isBankOpen()
+              .condition(() -> {
+                var items = func.apply(Inventory.stream()).list();
+                if (items.isEmpty())
+                  return true;
+                
+                var counts = items.stream().collect(
+                  Collectors.groupingBy(
+                    item -> item.getId(),
+                    Collectors.summingInt(item -> item.getStack())
+                  )
+                );
 
-            for (var e : counts.entrySet()) {
-              int id = e.getKey();
-              int amount = e.getValue();
-              if (amount <= 0) continue; 
-              
-              if (!Bank.deposit(id, amount))
-                return false;
-            }
-            return true;
-          })
-        .end();
+                for (var e : counts.entrySet()) {
+                  int id = e.getKey();
+                  int amount = e.getValue();
+                  if (amount <= 0) continue; 
+                  
+                  if (!Bank.deposit(id, amount))
+                    return false;
+                }
+                return true;
+              })
+            .end();
       //@formatter:on
     }
 
@@ -381,36 +397,74 @@ public class BehaviorTree {
       });
     }
 
-    public Builder click(Supplier<? extends Interactable> actorSupplier) {
-      //@formatter:off
-      return builder()
-        .sequence()
-          .inViewport(actorSupplier)
-          .condition(() -> {
-            var actor = actorSupplier.get();
-            if (actor == null)
-              return false;
-            
-            return actor.click();
-          })
-        .end();
-      //@formatter:on
+    public Builder click(Supplier<? extends Interactable> interactabSupplier) {
+      return condition(() -> {
+        var interactable = interactabSupplier.get();
+        if (!interactable.inViewport()) {
+          if (!(interactable instanceof Locatable))
+            return false;
+
+          Camera.turnTo((Locatable) interactable);
+          if (!org.powbot.api.Condition.wait(() -> {
+            return interactable.inViewport();
+          }, 100, 10))
+            return false;
+        }
+
+        if (interactable instanceof Nameable) {
+          return interactable.click();
+        }
+
+        return interactable.click();
+      });
     }
 
-    public Builder interact(Supplier<? extends Interactable> actorSupplier, String action) {
-      //@formatter:off
-      return builder()
-        .sequence()
-          .inViewport(actorSupplier)
-          .condition(() -> {
-            var actor = actorSupplier.get();
-            if (actor == null)
-              return false;
-            
-            return actor.interact(action);
-          })
-        .end();
-      //@formatter:on
+    public Builder interact(Supplier<? extends Interactable> interactabSupplier, String action) {
+      return condition(() -> {
+        var interactable = interactabSupplier.get();
+        if (!interactable.inViewport()) {
+          if (!(interactable instanceof Locatable))
+            return false;
+
+          Camera.turnTo((Locatable) interactable);
+          if (!org.powbot.api.Condition.wait(() -> {
+            return interactable.inViewport();
+          }, 100, 10))
+            return false;
+        }
+
+        if (interactable instanceof Nameable) {
+          return interactable.interact(action, ((Nameable) interactable).name());
+        }
+
+        return interactable.interact(action);
+      });
+    }
+
+    public Builder interact(Supplier<? extends Interactable> interactabSupplier, String action, Function<Interactable, Boolean> waiter,
+        Duration timeout) {
+      return condition(() -> {
+        var interactable = interactabSupplier.get();
+        if (!interactable.inViewport()) {
+          if (!(interactable instanceof Locatable))
+            return false;
+
+          Camera.turnTo((Locatable) interactable);
+          if (!org.powbot.api.Condition.wait(() -> {
+            return interactable.inViewport();
+          }, 100, 10))
+            return false;
+        }
+
+        if (interactable instanceof Nameable)
+          return interactable.interact(action, ((Nameable) interactable).name())
+              ? org.powbot.api.Condition.wait(() -> waiter.apply(interactable), (int) timeout.toMillis(), 10)
+              : false;
+
+        return interactable.interact(action)
+            ? org.powbot.api.Condition.wait(() -> waiter.apply(interactable), (int) timeout.toMillis(), 10)
+            : false;
+      });
     }
 
     public Builder turnCameraTo(Supplier<? extends Locatable> locatableSupplier) {
@@ -579,6 +633,24 @@ public class BehaviorTree {
 
         return area.contains(Players.local());
       });
+    }
+
+    public Builder animating() {
+      return condition(() -> {
+        return Players.local().animation() != -1;
+      });
+    }
+
+    public Builder animating(int animId) {
+      return condition(() -> {
+        return Players.local().animation() == animId;
+      });
+    }
+
+    public Builder sleepUntilAnimating(long millis) {
+      return sleepUntil(() -> {
+        return Players.local().animation() != -1;
+      }, millis);
     }
   }
 }
