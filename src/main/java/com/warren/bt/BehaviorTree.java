@@ -34,8 +34,11 @@ import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
 import org.powbot.api.rt4.stream.item.BankItemStream;
 import org.powbot.api.rt4.stream.item.InventoryItemStream;
+import org.powbot.api.script.AbstractScript;
 import org.powbot.api.waiter.Waiter;
+import org.powbot.dax.engine.local.Reachable.Direction;
 import org.powbot.dax.teleports.utils.ItemFilters;
+import org.slf4j.LoggerFactory;
 
 public class BehaviorTree {
   private final Node root;
@@ -282,6 +285,16 @@ public class BehaviorTree {
       }
     }
 
+    public Builder logInfo(Supplier<String> message) {
+      return succeed(() -> {
+        var logger = LoggerFactory.getLogger(AbstractScript.class);
+        if (logger == null)
+          return;
+        
+        logger.info(message.get());
+      });
+    }
+
     public Builder inventoryFull() {
       return condition(() -> Inventory.isFull());
     }
@@ -402,10 +415,6 @@ public class BehaviorTree {
             return false;
 
           Camera.turnTo((Locatable) interactable);
-          if (!org.powbot.api.Condition.wait(() -> {
-            return interactable.inViewport();
-          }, 100, 10))
-            return false;
         }
 
         if (interactable instanceof Nameable) {
@@ -422,12 +431,8 @@ public class BehaviorTree {
         if (!interactable.inViewport()) {
           if (!(interactable instanceof Locatable))
             return false;
-
+          
           Camera.turnTo((Locatable) interactable);
-          if (!org.powbot.api.Condition.wait(() -> {
-            return interactable.inViewport();
-          }, 100, 10))
-            return false;
         }
 
         if (interactable instanceof Nameable) {
@@ -437,30 +442,15 @@ public class BehaviorTree {
         return interactable.interact(action);
       });
     }
-
-    public Builder interact(Supplier<? extends Interactable> interactabSupplier, String action, Function<Interactable, Boolean> waiter,
-        Duration timeout) {
+    
+    public Builder setCameraAngle(int angle, int tolerance) {
       return condition(() -> {
-        var interactable = interactabSupplier.get();
-        if (!interactable.inViewport()) {
-          if (!(interactable instanceof Locatable))
-            return false;
-
-          Camera.turnTo((Locatable) interactable);
-          if (!org.powbot.api.Condition.wait(() -> {
-            return interactable.inViewport();
-          }, 100, 10))
-            return false;
-        }
-
-        if (interactable instanceof Nameable)
-          return interactable.interact(action, ((Nameable) interactable).name())
-              ? org.powbot.api.Condition.wait(() -> waiter.apply(interactable), (int) timeout.toMillis(), 10)
-              : false;
-
-        return interactable.interact(action)
-            ? org.powbot.api.Condition.wait(() -> waiter.apply(interactable), (int) timeout.toMillis(), 10)
-            : false;
+        var currentAngle = Camera.yaw();
+        var diff = Math.abs(angle - currentAngle);
+        if (diff <= tolerance)
+          return true;
+        
+        return Camera.angle(angle);
       });
     }
 
@@ -471,6 +461,15 @@ public class BehaviorTree {
           return false;
 
         Camera.turnTo(locatable);
+        return true;
+      });
+    }
+
+    public Builder fixCamera() {
+      return condition(() -> {
+        if (Camera.pitch() < 90)
+          Camera.pitch(true);
+        
         return true;
       });
     }
@@ -629,6 +628,16 @@ public class BehaviorTree {
           return false;
 
         return area.contains(Players.local());
+      });
+    }
+
+    public Builder distance(Supplier<? extends Locatable> locatableSupplier, int dist) {
+      return condition(() -> {
+        var locatable = locatableSupplier.get();
+        if (locatable == null)
+          return false;
+        
+        return Players.local().distanceTo(locatable) <= dist;
       });
     }
 

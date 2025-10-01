@@ -7,6 +7,7 @@ import java.util.stream.IntStream;
 
 import org.powbot.api.rt4.Item;
 import org.powbot.api.rt4.stream.item.ItemStream;
+import org.powbot.mobile.rscache.loader.ItemLoader;
 
 public class ItemEntry {
   private Pattern pattern;

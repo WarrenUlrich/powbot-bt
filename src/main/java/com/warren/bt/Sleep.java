@@ -1,22 +1,24 @@
 package com.warren.bt;
 
 public class Sleep implements Node {
-  private final long duration;
-  private long startTick = -1;
+  private static final long UNSET = -1L;
 
-  public Sleep(long duration) {
-    this.duration = duration;
+  private final long durationNanos;  // store duration in nanoseconds
+  private long startNanos = UNSET;
+
+  public Sleep(long durationMillis) {
+    this.durationNanos = durationMillis * 1_000_000L;
   }
 
-  // TODO: fix, replace -1 with currentTimeMillis
   @Override
   public Status tick() {
-    if (startTick < 0) {
-      startTick = -1;
+    // First tick: initialize timer
+    if (startNanos == UNSET) {
+      startNanos = System.nanoTime();
     }
 
-    long elapsed = -1 - startTick;
-    if (elapsed >= duration) {
+    long elapsed = System.nanoTime() - startNanos;
+    if (elapsed >= durationNanos) {
       reset();
       return Status.SUCCESS;
     }
@@ -26,6 +28,6 @@ public class Sleep implements Node {
 
   @Override
   public void reset() {
-    startTick = -1;
+    startNanos = UNSET;
   }
 }
