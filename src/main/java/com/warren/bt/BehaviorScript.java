@@ -9,7 +9,7 @@ public abstract class BehaviorScript extends AbstractScript {
   
   @Override
   public void onStart() {
-    behaviorTree = builder().build();
+    behaviorTree = behaviorTree();
   }
 
   @Override
@@ -17,5 +17,5 @@ public abstract class BehaviorScript extends AbstractScript {
     behaviorTree.run();
   }
   
-  public abstract BehaviorTree.Builder builder();
+  public abstract BehaviorTree behaviorTree();
 }

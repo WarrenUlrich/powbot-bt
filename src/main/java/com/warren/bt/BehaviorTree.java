@@ -23,12 +23,15 @@ import org.powbot.api.rt4.Camera;
 import org.powbot.api.rt4.Chat;
 import org.powbot.api.rt4.Combat;
 import org.powbot.api.rt4.Game;
+import org.powbot.api.rt4.GameObject;
 import org.powbot.api.rt4.Inventory;
 import org.powbot.api.rt4.Item;
+import org.powbot.api.rt4.ItemType;
 import org.powbot.api.rt4.Magic;
 import org.powbot.api.rt4.Movement;
 import org.powbot.api.rt4.Npc;
 import org.powbot.api.rt4.Npcs;
+import org.powbot.api.rt4.Objects;
 import org.powbot.api.rt4.Player;
 import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
@@ -38,6 +41,7 @@ import org.powbot.api.script.AbstractScript;
 import org.powbot.api.waiter.Waiter;
 import org.powbot.dax.engine.local.Reachable.Direction;
 import org.powbot.dax.teleports.utils.ItemFilters;
+import org.powbot.mobile.script.ScriptManager;
 import org.slf4j.LoggerFactory;
 
 public class BehaviorTree {
@@ -214,7 +218,7 @@ public class BehaviorTree {
     }
 
     public Builder subtree(String name, Supplier<BehaviorTree> treeSupplier) {
-      Node node = new DynamicSubTree(name, treeSupplier);
+      Node node = new SubTree(name, () -> treeSupplier.get().root);
       addNode(node);
       return this;
     }
@@ -290,7 +294,7 @@ public class BehaviorTree {
         var logger = LoggerFactory.getLogger(AbstractScript.class);
         if (logger == null)
           return;
-        
+
         logger.info(message.get());
       });
     }
@@ -324,6 +328,12 @@ public class BehaviorTree {
       return condition(() -> {
         var movement = movementSupplier.get();
         return movement.move().getSuccess();
+      });
+    }
+
+    public Builder moveToBank() {
+      return condition(() -> {
+        return Movement.moveToBank().getSuccess();
       });
     }
 
@@ -428,11 +438,15 @@ public class BehaviorTree {
     public Builder interact(Supplier<? extends Interactable> interactabSupplier, String action) {
       return condition(() -> {
         var interactable = interactabSupplier.get();
-        if (!interactable.inViewport()) {
-          if (!(interactable instanceof Locatable))
-            return false;
-          
-          Camera.turnTo((Locatable) interactable);
+        if (interactable instanceof Item) {
+          Inventory.open();
+        } else {
+          if (!interactable.inViewport()) {
+            if (!(interactable instanceof Locatable))
+              return false;
+
+            Camera.turnTo((Locatable) interactable);
+          }
         }
 
         if (interactable instanceof Nameable) {
@@ -442,14 +456,14 @@ public class BehaviorTree {
         return interactable.interact(action);
       });
     }
-    
+
     public Builder setCameraAngle(int angle, int tolerance) {
       return condition(() -> {
         var currentAngle = Camera.yaw();
         var diff = Math.abs(angle - currentAngle);
         if (diff <= tolerance)
           return true;
-        
+
         return Camera.angle(angle);
       });
     }
@@ -465,11 +479,15 @@ public class BehaviorTree {
       });
     }
 
+    // lazy way to turn camera top down and zoom out
     public Builder fixCamera() {
       return condition(() -> {
         if (Camera.pitch() < 90)
           Camera.pitch(true);
-        
+
+        if (Camera.getZoom() > 10)
+          Camera.moveZoomSlider(0);
+
         return true;
       });
     }
@@ -636,7 +654,7 @@ public class BehaviorTree {
         var locatable = locatableSupplier.get();
         if (locatable == null)
           return false;
-        
+
         return Players.local().distanceTo(locatable) <= dist;
       });
     }
@@ -668,6 +686,25 @@ public class BehaviorTree {
     public Builder alive(Supplier<? extends Actor<?>> actorSupplier) {
       return condition(() -> {
         return actorSupplier.get().alive();
+      });
+    }
+
+    public Builder isNil(Supplier<?> supplier) {
+      return condition(() -> {
+        var value = supplier.get();
+        if (value instanceof Actor) {
+          return value.equals(Actor.getNil());
+        } else if (value instanceof GameObject) {
+          return value.equals(GameObject.getNil());
+        }
+
+        throw new IllegalArgumentException("Unsupported type in isNil: " + value.getClass());
+      });
+    }
+
+    public Builder stopScript() {
+      return succeed(() -> {
+        ScriptManager.INSTANCE.stop();
       });
     }
   }

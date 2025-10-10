@@ -6,10 +6,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.powbot.api.rt4.Item;
-import org.powbot.api.rt4.stream.item.ItemStream;
-import org.powbot.mobile.rscache.loader.ItemLoader;
 
 public class ItemEntry {
+  // TODO: powbot config only supports (id, id) for grabbing equipment
+  // change this accordingly
   private Pattern pattern;
   private int minQuantity;
   private int maxQuantity;
