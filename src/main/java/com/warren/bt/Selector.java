@@ -11,10 +11,6 @@ public class Selector extends Composite {
       Node child = children.get(currentChild);
       Status status = child.tick();
 
-      if (status == Status.SLEEPING) {
-        return Status.SLEEPING;
-      }
-
       if (status == Status.SUCCESS) {
         reset();
         return Status.SUCCESS;

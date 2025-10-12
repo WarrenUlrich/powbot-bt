@@ -1,6 +1,5 @@
 package com.warren.bt;
 
-
 public class Sequence extends Composite {
   @Override
   public Status tick() {
@@ -11,22 +10,20 @@ public class Sequence extends Composite {
     while (currentChild < children.size()) {
       Node child = children.get(currentChild);
       Status status = child.tick();
-      if (status == Status.SLEEPING)
-        return Status.SLEEPING;
 
-      if (status != Status.SUCCESS) {
-        // If running or failed, return that status
-        if (status == Status.FAILURE) {
-          reset();
-        }
-        return status;
+      if (status == Status.FAILURE) {
+        reset();
+        return Status.FAILURE;
       }
 
-      // Move to next child
+      if (status == Status.RUNNING) {
+        return Status.RUNNING;
+      }
+
+      // Continue to next child if SUCCESS
       currentChild++;
     }
 
-    // All children succeeded
     reset();
     return Status.SUCCESS;
   }

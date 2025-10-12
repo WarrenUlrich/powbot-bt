@@ -10,14 +10,13 @@ public class SleepUntil implements Node {
   private static final Random RAND = new Random();
 
   private final BooleanSupplier condition;
-  private final long baseMaxNanos; // base mean (peak of bell curve)
-  private final double spread; // standard deviation factor
-  private long currentMaxNanos; // current randomized timeout
+  private final long baseMaxNanos;
+  private final double spread;
+  private long currentMaxNanos;
   private long startNanos = UNSET;
 
-  /** Time-based: pass a Duration */
   public SleepUntil(BooleanSupplier condition, Duration maxWait) {
-    this(condition, maxWait, 0.33); // default spread = 33%
+    this(condition, maxWait, 0.33);
   }
 
   public SleepUntil(BooleanSupplier condition, Duration maxWait, double spread) {
@@ -27,45 +26,40 @@ public class SleepUntil implements Node {
     this.currentMaxNanos = randomizeDuration();
   }
 
-  /** Convenience: milliseconds */
   public SleepUntil(BooleanSupplier condition, long maxMillis) {
     this(condition, Duration.ofMillis(maxMillis));
   }
 
-  /** Convenience: milliseconds + spread */
   public SleepUntil(BooleanSupplier condition, long maxMillis, double spread) {
     this(condition, Duration.ofMillis(maxMillis), spread);
   }
 
   private long randomizeDuration() {
-    double gaussian = RAND.nextGaussian(); // mean 0, stddev 1
+    double gaussian = RAND.nextGaussian();
     double factor = 1.0 + gaussian * spread;
-    factor = Math.max(0.1, factor); // avoid negative or too small durations
+    factor = Math.max(0.1, factor);
     return (long) (baseMaxNanos * factor);
   }
 
   @Override
   public Status tick() {
-    // Start the timer on first tick
     if (startNanos == UNSET) {
       startNanos = System.nanoTime();
     }
 
-    // Condition met? We're done.
     if (condition.getAsBoolean()) {
       reset();
       return Status.SUCCESS;
     }
 
-    // Check timeout
     long elapsed = System.nanoTime() - startNanos;
     if (elapsed >= currentMaxNanos) {
       reset();
       return Status.FAILURE;
     }
 
-    // Still waiting
-    return Status.SLEEPING;
+    // Formerly SLEEPING → now just RUNNING
+    return Status.RUNNING;
   }
 
   @Override
@@ -74,10 +68,6 @@ public class SleepUntil implements Node {
     currentMaxNanos = randomizeDuration();
   }
 
-  /**
-   * Decorator that sleeps until its child node returns SUCCESS.
-   * The child node acts as the condition.
-   */
   public static class Decorator extends com.warren.bt.Decorator {
     private static final long UNSET = -1L;
     private static final Random RAND = new Random();
@@ -159,7 +149,8 @@ public class SleepUntil implements Node {
         return Status.FAILURE;
       }
 
-      return Status.SLEEPING;
+      // Formerly SLEEPING → now RUNNING
+      return Status.RUNNING;
     }
 
     @Override

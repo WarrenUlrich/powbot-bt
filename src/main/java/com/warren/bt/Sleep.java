@@ -40,7 +40,8 @@ public class Sleep implements Node {
       return Status.SUCCESS;
     }
 
-    return Status.SLEEPING;
+    // Previously SLEEPING, now standard RUNNING
+    return Status.RUNNING;
   }
 
   @Override

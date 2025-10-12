@@ -313,6 +313,14 @@ public class BehaviorTree {
       });
     }
 
+    public Builder useItem(Function<InventoryItemStream, Item> use, Function<InventoryItemStream, Item> on) {
+      return interact(() -> use.apply(Inventory.stream()), "Use")
+          .sleepUntil(() -> {
+            return !Inventory.selectedItem().equals(Item.getNil());
+          }, 2000)
+          .interact(() -> on.apply(Inventory.stream()), "Use");
+    }
+
     public Builder drop(Function<InventoryItemStream, InventoryItemStream> func) {
       return condition(() -> {
         var items = func.apply(Inventory.stream()).list();
