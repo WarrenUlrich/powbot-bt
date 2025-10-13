@@ -313,11 +313,20 @@ public class BehaviorTree {
       });
     }
 
-    public Builder useItem(Function<InventoryItemStream, Item> use, Function<InventoryItemStream, Item> on) {
-      return interact(() -> use.apply(Inventory.stream()), "Use")
+    public Builder useItem(Supplier<Item> use, Supplier<Item> on) {
+      return interact(() -> use.get(), "Use")
           .sleepUntil(() -> {
             return !Inventory.selectedItem().equals(Item.getNil());
           }, 2000)
+          .interact(() -> on.get(), "Use");
+    }
+
+    public Builder useItem(Function<InventoryItemStream, Item> use, Function<InventoryItemStream, Item> on) {
+      return interact(() -> use.apply(Inventory.stream()), "Use")
+          .sleepUntil(() -> {
+            return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
+          }, 2000)
+          .sleep(200)
           .interact(() -> on.apply(Inventory.stream()), "Use");
     }
 
@@ -446,8 +455,11 @@ public class BehaviorTree {
     public Builder interact(Supplier<? extends Interactable> interactabSupplier, String action) {
       return condition(() -> {
         var interactable = interactabSupplier.get();
-        if (interactable instanceof Item) {
+        if (interactable instanceof Item item) {
           Inventory.open();
+          if (item.actions().get(0).equals(action))
+            return item.click(); 
+          
         } else {
           if (!interactable.inViewport()) {
             if (!(interactable instanceof Locatable))
