@@ -1,6 +1,5 @@
 package com.warren.bt;
 
-import java.time.Duration;
 import java.util.Stack;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -9,9 +8,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.powbot.api.Actionable;
 import org.powbot.api.Area;
-import org.powbot.api.Filter;
 import org.powbot.api.Interactable;
 import org.powbot.api.Locatable;
 import org.powbot.api.Nameable;
@@ -26,21 +23,14 @@ import org.powbot.api.rt4.Game;
 import org.powbot.api.rt4.GameObject;
 import org.powbot.api.rt4.Inventory;
 import org.powbot.api.rt4.Item;
-import org.powbot.api.rt4.ItemType;
 import org.powbot.api.rt4.Magic;
 import org.powbot.api.rt4.Movement;
-import org.powbot.api.rt4.Npc;
-import org.powbot.api.rt4.Npcs;
-import org.powbot.api.rt4.Objects;
-import org.powbot.api.rt4.Player;
 import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
 import org.powbot.api.rt4.stream.item.BankItemStream;
 import org.powbot.api.rt4.stream.item.InventoryItemStream;
 import org.powbot.api.script.AbstractScript;
-import org.powbot.api.waiter.Waiter;
-import org.powbot.dax.engine.local.Reachable.Direction;
-import org.powbot.dax.teleports.utils.ItemFilters;
+import org.powbot.dax.api.models.RunescapeBank;
 import org.powbot.mobile.script.ScriptManager;
 import org.slf4j.LoggerFactory;
 
@@ -166,11 +156,6 @@ public class BehaviorTree {
     public Builder sleep(long duration) {
       Node node = new Sleep(duration);
       addNode(node);
-      return this;
-    }
-
-    public Builder sleepUntil(long duration) {
-      nodeStack.push(new SleepUntil.Decorator(duration));
       return this;
     }
 
@@ -324,7 +309,8 @@ public class BehaviorTree {
     public Builder useItem(Function<InventoryItemStream, Item> use, Function<InventoryItemStream, Item> on) {
       return interact(() -> use.apply(Inventory.stream()), "Use")
           .sleepUntil(() -> {
-            return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
+            return !Inventory.selectedItem().equals(Item.getNil());
+            // return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
           }, 2000)
           .sleep(200)
           .interact(() -> on.apply(Inventory.stream()), "Use");
@@ -366,6 +352,28 @@ public class BehaviorTree {
 
     public Builder isBankOpen() {
       return condition(Bank::opened);
+    }
+
+    public Builder atBank() {
+      return condition(() -> {
+        RunescapeBank closest = null;
+        var bestDist = Double.MAX_VALUE;
+        for (var bank : RunescapeBank.values()) {
+          var dist = bank.getPosition().distanceTo(Players.local());
+          if (dist < bestDist) {
+            bestDist = dist;
+            closest = bank;
+          }
+        }
+
+        if (closest.getPosition().distanceTo(Players.local()) > 6)
+          return false;
+
+        return true;
+        // DaxWalker
+        // var nearestBank = Bank.nearest();
+        // return nearestBank.distanceTo(Players.local()) < 5;
+      });
     }
 
     public Builder openBank() {
@@ -458,8 +466,8 @@ public class BehaviorTree {
         if (interactable instanceof Item item) {
           Inventory.open();
           if (item.actions().get(0).equals(action))
-            return item.click(); 
-          
+            return item.click();
+
         } else {
           if (!interactable.inViewport()) {
             if (!(interactable instanceof Locatable))
