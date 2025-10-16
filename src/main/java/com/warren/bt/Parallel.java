@@ -10,20 +10,11 @@ public class Parallel extends Composite {
   private final Policy successPolicy;
   private final Policy failurePolicy;
 
-  /**
-   * Creates a Parallel node with specified policies.
-   *
-   * @param successPolicy Policy for determining success
-   * @param failurePolicy Policy for determining failure
-   */
   public Parallel(Policy successPolicy, Policy failurePolicy) {
     this.successPolicy = successPolicy;
     this.failurePolicy = failurePolicy;
   }
 
-  /**
-   * Creates a Parallel node that requires all children to succeed.
-   */
   public Parallel() {
     this(Policy.REQUIRE_ALL, Policy.REQUIRE_ONE);
   }

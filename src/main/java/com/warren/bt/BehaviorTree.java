@@ -1,11 +1,8 @@
 package com.warren.bt;
 
 import java.util.Stack;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.IntPredicate;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -22,15 +19,12 @@ import org.powbot.api.rt4.Actor;
 import org.powbot.api.rt4.Bank;
 import org.powbot.api.rt4.Camera;
 import org.powbot.api.rt4.Chat;
-import org.powbot.api.rt4.CollisionMap;
 import org.powbot.api.rt4.Combat;
 import org.powbot.api.rt4.Game;
-import org.powbot.api.rt4.GameObject;
 import org.powbot.api.rt4.Inventory;
 import org.powbot.api.rt4.Item;
 import org.powbot.api.rt4.Magic;
 import org.powbot.api.rt4.Movement;
-import org.powbot.api.rt4.Npc;
 import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
 import org.powbot.api.rt4.Skills;
@@ -39,7 +33,6 @@ import org.powbot.api.rt4.stream.item.InventoryItemStream;
 import org.powbot.api.rt4.walking.model.Skill;
 import org.powbot.api.script.AbstractScript;
 import org.powbot.dax.api.models.RunescapeBank;
-import org.powbot.dax.engine.local.CollisionFlags;
 import org.powbot.mobile.script.ScriptManager;
 import org.slf4j.LoggerFactory;
 

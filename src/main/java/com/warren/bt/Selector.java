@@ -20,7 +20,6 @@ public class Selector extends Composite {
         return Status.RUNNING;
       }
 
-      // If FAILURE, move to next child
       currentChild++;
     }
 

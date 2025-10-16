@@ -20,7 +20,6 @@ public class Action implements Node {
     try {
       return action.get();
     } catch (Exception e) {
-      System.err.println("Action '" + name + "' failed: " + e.getMessage());
       return Status.FAILURE;
     }
   }

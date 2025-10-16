@@ -40,7 +40,6 @@ public class Sleep implements Node {
       return Status.SUCCESS;
     }
 
-    // Previously SLEEPING, now standard RUNNING
     return Status.RUNNING;
   }
 

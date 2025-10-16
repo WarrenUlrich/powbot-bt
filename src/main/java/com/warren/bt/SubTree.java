@@ -2,9 +2,6 @@ package com.warren.bt;
 
 import java.util.function.Supplier;
 
-/** Wraps another node built lazily from a supplier.
- *  Assumes Node has only tick() and reset().
- */
 public class SubTree implements Node {
   private final String name;
   private final Supplier<Node> treeSupplier;

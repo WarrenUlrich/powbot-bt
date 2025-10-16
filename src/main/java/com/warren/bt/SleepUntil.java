@@ -58,7 +58,6 @@ public class SleepUntil implements Node {
       return Status.FAILURE;
     }
 
-    // Formerly SLEEPING → now just RUNNING
     return Status.RUNNING;
   }
 
@@ -149,7 +148,6 @@ public class SleepUntil implements Node {
         return Status.FAILURE;
       }
 
-      // Formerly SLEEPING → now RUNNING
       return Status.RUNNING;
     }
 

@@ -20,7 +20,6 @@ public class Sequence extends Composite {
         return Status.RUNNING;
       }
 
-      // Continue to next child if SUCCESS
       currentChild++;
     }
 
