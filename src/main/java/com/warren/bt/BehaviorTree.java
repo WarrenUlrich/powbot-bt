@@ -1,8 +1,11 @@
 package com.warren.bt;
 
 import java.util.Stack;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.IntPredicate;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -12,12 +15,14 @@ import org.powbot.api.Area;
 import org.powbot.api.Interactable;
 import org.powbot.api.Locatable;
 import org.powbot.api.Nameable;
+import org.powbot.api.Nillable;
 import org.powbot.api.Tile;
 import org.powbot.api.Viewable;
 import org.powbot.api.rt4.Actor;
 import org.powbot.api.rt4.Bank;
 import org.powbot.api.rt4.Camera;
 import org.powbot.api.rt4.Chat;
+import org.powbot.api.rt4.CollisionMap;
 import org.powbot.api.rt4.Combat;
 import org.powbot.api.rt4.Game;
 import org.powbot.api.rt4.GameObject;
@@ -28,12 +33,17 @@ import org.powbot.api.rt4.Movement;
 import org.powbot.api.rt4.Npc;
 import org.powbot.api.rt4.Players;
 import org.powbot.api.rt4.Prayer;
+import org.powbot.api.rt4.Skills;
 import org.powbot.api.rt4.stream.item.BankItemStream;
 import org.powbot.api.rt4.stream.item.InventoryItemStream;
+import org.powbot.api.rt4.walking.model.Skill;
 import org.powbot.api.script.AbstractScript;
 import org.powbot.dax.api.models.RunescapeBank;
+import org.powbot.dax.engine.local.CollisionFlags;
 import org.powbot.mobile.script.ScriptManager;
 import org.slf4j.LoggerFactory;
+
+import com.warren.util.Projection;
 
 public class BehaviorTree {
   private final Node root;
@@ -324,27 +334,28 @@ public class BehaviorTree {
     }
 
     // public Builder useItemOn(Supplier<Item> use, Supplier<Npc> on) {
-    //   return condition(() -> {
-    //     return use.get().useOn(on.get());
-    //   });
-    // }
-    
-    // public Builder useItem(Supplier<Item> use, Supplier<Item> on) {
-    //   return interact(() -> use.get(), "Use")
-    //       .sleepUntil(() -> {
-    //         return !Inventory.selectedItem().equals(Item.getNil());
-    //       }, 2000)
-    //       .interact(() -> on.get(), "Use");
+    // return condition(() -> {
+    // return use.get().useOn(on.get());
+    // });
     // }
 
-    // public Builder useItem(Function<InventoryItemStream, Item> use, Function<InventoryItemStream, Item> on) {
-    //   return interact(() -> use.apply(Inventory.stream()), "Use")
-    //       .sleepUntil(() -> {
-    //         return !Inventory.selectedItem().equals(Item.getNil());
-    //         // return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
-    //       }, 2000)
-    //       .sleep(200)
-    //       .interact(() -> on.apply(Inventory.stream()), "Use");
+    // public Builder useItem(Supplier<Item> use, Supplier<Item> on) {
+    // return interact(() -> use.get(), "Use")
+    // .sleepUntil(() -> {
+    // return !Inventory.selectedItem().equals(Item.getNil());
+    // }, 2000)
+    // .interact(() -> on.get(), "Use");
+    // }
+
+    // public Builder useItem(Function<InventoryItemStream, Item> use,
+    // Function<InventoryItemStream, Item> on) {
+    // return interact(() -> use.apply(Inventory.stream()), "Use")
+    // .sleepUntil(() -> {
+    // return !Inventory.selectedItem().equals(Item.getNil());
+    // // return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
+    // }, 2000)
+    // .sleep(200)
+    // .interact(() -> on.apply(Inventory.stream()), "Use");
     // }
 
     public Builder drop(Function<InventoryItemStream, InventoryItemStream> func) {
@@ -732,7 +743,7 @@ public class BehaviorTree {
 
     public Builder interacting() {
       return condition(() -> {
-        return !Players.local().interacting().equals(Actor.getNil());
+        return Players.local().interactingIndex() != -1;
       });
     }
 
@@ -748,16 +759,10 @@ public class BehaviorTree {
       });
     }
 
-    public Builder isNil(Supplier<?> supplier) {
+    public Builder isNil(Supplier<? extends Nillable<?>> supplier) {
       return condition(() -> {
         var value = supplier.get();
-        if (value instanceof Actor) {
-          return value.equals(Actor.getNil());
-        } else if (value instanceof GameObject) {
-          return value.equals(GameObject.getNil());
-        }
-
-        throw new IllegalArgumentException("Unsupported type in isNil: " + value.getClass());
+        return value.equals(value.nil());
       });
     }
 
@@ -765,6 +770,30 @@ public class BehaviorTree {
       return succeed(() -> {
         ScriptManager.INSTANCE.stop();
       });
+    }
+    
+    public Builder hasLineOfSight(Supplier<Actor<?>> actorASupplier, Supplier<Actor<?>> actorBSupplier) {
+      return condition(() -> {
+        return Projection.hasLineOfSight(actorASupplier.get(), actorBSupplier.get());
+      });
+    }
+
+    public Builder hasLineOfSight(Supplier<Actor<?>> actorASupplier, Supplier<Actor<?>> actorBSupplier, int distance) {
+      return condition(() -> {
+        return Projection.hasLineOfSight(actorASupplier.get(), actorBSupplier.get(), distance);
+      });
+    }
+
+    public Builder hasLineOfSight(Supplier<Actor<?>> actorSupplier) {
+      return hasLineOfSight(Players::local, actorSupplier);
+    }
+
+    public Builder hasLineOfSight(Supplier<Actor<?>> actorSupplier, int distance) {
+      return hasLineOfSight(Players::local, actorSupplier, distance);
+    }
+
+    public Builder skillLevel(Skill skill, int level) {
+      return condition(() -> Skills.level(skill) >= level);
     }
   }
 }
