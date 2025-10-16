@@ -333,31 +333,6 @@ public class BehaviorTree {
       });
     }
 
-    // public Builder useItemOn(Supplier<Item> use, Supplier<Npc> on) {
-    // return condition(() -> {
-    // return use.get().useOn(on.get());
-    // });
-    // }
-
-    // public Builder useItem(Supplier<Item> use, Supplier<Item> on) {
-    // return interact(() -> use.get(), "Use")
-    // .sleepUntil(() -> {
-    // return !Inventory.selectedItem().equals(Item.getNil());
-    // }, 2000)
-    // .interact(() -> on.get(), "Use");
-    // }
-
-    // public Builder useItem(Function<InventoryItemStream, Item> use,
-    // Function<InventoryItemStream, Item> on) {
-    // return interact(() -> use.apply(Inventory.stream()), "Use")
-    // .sleepUntil(() -> {
-    // return !Inventory.selectedItem().equals(Item.getNil());
-    // // return Inventory.selectedItem().equals(use.apply(Inventory.stream()));
-    // }, 2000)
-    // .sleep(200)
-    // .interact(() -> on.apply(Inventory.stream()), "Use");
-    // }
-
     public Builder drop(Function<InventoryItemStream, InventoryItemStream> func) {
       return condition(() -> {
         var items = func.apply(Inventory.stream()).list();
