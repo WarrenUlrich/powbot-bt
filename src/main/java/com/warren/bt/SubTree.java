@@ -32,7 +32,7 @@ public class SubTree implements Node {
   public void reset() {
     if (tree != null) {
       tree.reset();
-      tree = null; // allow rebuilding after a reset
+      // tree = null; // allow rebuilding after a reset
     }
   }
 

@@ -298,6 +298,18 @@ public class BehaviorTree {
       });
     }
 
+    public Builder itemSelected() {
+      return condition(() -> {
+        return !Inventory.selectedItem().equals(Item.getNil());
+      });
+    }
+
+    public Builder itemSelected(Supplier<Item> itemSupplier) {
+      return condition(() -> {
+        return Inventory.selectedItem().equals(itemSupplier.get());
+      });
+    }
+
     public Builder useItem(Supplier<Item> use, Supplier<Item> on) {
       return interact(() -> use.get(), "Use")
           .sleepUntil(() -> {

@@ -1,7 +1,5 @@
 package com.warren.bt;
 
-import java.lang.module.ModuleDescriptor.Builder;
-
 import org.powbot.api.script.AbstractScript;
 
 public abstract class BehaviorScript extends AbstractScript {
