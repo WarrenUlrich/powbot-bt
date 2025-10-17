@@ -366,23 +366,8 @@ public class BehaviorTree {
 
     public Builder atBank() {
       return condition(() -> {
-        RunescapeBank closest = null;
-        var bestDist = Double.MAX_VALUE;
-        for (var bank : RunescapeBank.values()) {
-          var dist = bank.getPosition().distanceTo(Players.local());
-          if (dist < bestDist) {
-            bestDist = dist;
-            closest = bank;
-          }
-        }
-
-        if (closest.getPosition().distanceTo(Players.local()) > 6)
-          return false;
-
-        return true;
-        // DaxWalker
-        // var nearestBank = Bank.nearest();
-        // return nearestBank.distanceTo(Players.local()) < 5;
+        var nearestBank = Bank.nearest();
+        return nearestBank.distanceTo(Players.local()) < 5;
       });
     }
 
