@@ -42,6 +42,10 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             return PowBehaviorTree(r)
         }
 
+        fun info(messageSupplier: () -> String) = succeed {
+            ScriptManager.script()!!.logger.info(messageSupplier())
+        }
+
         fun inventoryFull() = condition { Inventory.isFull() }
 
         fun inventoryEmpty() = condition { Inventory.isEmpty() }
@@ -59,6 +63,13 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         fun drop(func: (InventoryItemStream) -> InventoryItemStream) = condition {
             val items = func(Inventory.stream()).list()
             Inventory.drop(items)
+        }
+
+        fun <T> useItemOn(
+            use: (InventoryItemStream) -> Item,
+            on: () -> T
+        ) where T : Interactable, T : Nameable = condition {
+            use(Inventory.stream()).useOn(on())
         }
 
         fun moveTo(movementSupplier: () -> Movement.Builder) = condition {
