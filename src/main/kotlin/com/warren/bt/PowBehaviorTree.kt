@@ -30,7 +30,6 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
     companion object {
         fun build(block: PowBuilder.() -> Unit): PowBehaviorTree {
             val built: BehaviorTree = PowBuilder().apply(block).build()
-            // build() actually returns PowBehaviorTree (see override below), so this cast is safe
             return built as PowBehaviorTree
         }
     }

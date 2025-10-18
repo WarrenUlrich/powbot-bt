@@ -1,19 +1,15 @@
 package com.warren.bt
 
-/**
- * Simple cooldown: wait for [ticks] RUNNING frames before letting the child execute once. After the
- * child completes (success/failure), resets and starts cooldown again.
- */
-class Cooldown(private val ticks: Int) : Decorator("Cooldown") {
-  private var remaining = ticks
+class Cooldown(private val cooldownMs: Long) : Decorator("Cooldown") {
+  private var nextAllowedTime = 0L
   private var runningChild = false
 
   override fun tick(): Status {
     val c = child ?: return Status.FAILURE
+    val now = System.currentTimeMillis()
 
     if (!runningChild) {
-      if (remaining > 0) {
-        remaining--
+      if (now < nextAllowedTime) {
         return Status.RUNNING
       }
       runningChild = true
@@ -21,16 +17,16 @@ class Cooldown(private val ticks: Int) : Decorator("Cooldown") {
 
     val s = c.tick()
     if (s != Status.RUNNING) {
-      // completed; start cooldown again
+      // completed; start cooldown timer
       c.reset()
       runningChild = false
-      remaining = ticks
+      nextAllowedTime = now + cooldownMs
     }
     return s
   }
 
   override fun onReset() {
-    remaining = ticks
     runningChild = false
+    nextAllowedTime = 0L
   }
 }

@@ -19,21 +19,11 @@ open class BehaviorTree protected constructor(val root: Node) {
         fun build(block: Builder.() -> Unit): BehaviorTree = Builder().apply(block).build()
     }
 
-    /**
-     * Open builder so downstream users can extend and add custom DSL ops.
-     * Public constructor so it can be subclassed from other modules/packages.
-     */
     open class Builder @JvmOverloads constructor() {
-        // Protect these so subclasses can see state if absolutely needed,
-        // but still keep regular callers on the safe DSL surface.
         protected val nodeStack = ArrayDeque<Decorator>()
         protected val compositeStack = ArrayDeque<Composite>()
         protected var root: Node? = null
 
-        /**
-         * Make attach/composite protected so custom builders can reuse the
-         * core wiring logic to introduce new node types/decorators safely.
-         */
         protected fun attach(node: Node) {
             var n = node
             while (nodeStack.isNotEmpty()) {
@@ -57,17 +47,18 @@ open class BehaviorTree protected constructor(val root: Node) {
             return node
         }
 
-        // ---- Composites ----
         fun sequence(block: Builder.() -> Unit) = composite(Sequence(), block)
+
         fun selector(block: Builder.() -> Unit) = composite(Selector(), block)
+
         fun randomSelector(block: Builder.() -> Unit) = composite(RandomSelector(), block)
+
         fun parallel(
             successPolicy: Parallel.Policy = Parallel.Policy.REQUIRE_ALL,
             failurePolicy: Parallel.Policy = Parallel.Policy.REQUIRE_ONE,
             block: Builder.() -> Unit
         ) = composite(Parallel(successPolicy, failurePolicy), block)
 
-        // ---- Leaves ----
         fun action(name: String = "Action", action: () -> Status) = attach(Action(name, action))
 
         fun succeed(name: String = "Succeed", after: (() -> Unit)? = null) = attach(
@@ -88,10 +79,10 @@ open class BehaviorTree protected constructor(val root: Node) {
             attach(Condition(name, predicate))
 
         fun sleep(ms: Long) = attach(Sleep(ms))
-        fun sleepUntil(maxTicks: Long, predicate: () -> Boolean) =
-            attach(SleepUntil(predicate, maxTicks))
 
-        // ---- Decorators (single child) ----
+        fun sleepUntil(ms: Long, predicate: () -> Boolean) =
+            attach(SleepUntil(predicate, ms))
+
         fun invert(block: Builder.() -> Unit) {
             nodeStack.addLast(Inverter())
             this.block()
@@ -107,8 +98,8 @@ open class BehaviorTree protected constructor(val root: Node) {
             this.block()
         }
 
-        fun cooldown(ticks: Int, block: Builder.() -> Unit) {
-            nodeStack.addLast(Cooldown(ticks))
+        fun cooldown(ms: Long, block: Builder.() -> Unit) {
+            nodeStack.addLast(Cooldown(ms))
             this.block()
         }
 
@@ -117,7 +108,6 @@ open class BehaviorTree protected constructor(val root: Node) {
             this.block()
         }
 
-        // ---- Subtrees ----
         fun subtree(name: String = "SubTree", tree: BehaviorTree) =
             attach(SubTree(name) { tree.root })
 
