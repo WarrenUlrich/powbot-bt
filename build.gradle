@@ -1,64 +1,23 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
+  id 'java-library'
+  id "org.jetbrains.kotlin.jvm" version "1.9.0"
 }
 
-group = 'com.warren'
-version = '0.1.0'
-
-java {
-    toolchain { languageVersion = JavaLanguageVersion.of(17) } // or 11
-    withSourcesJar()
-    withJavadocJar()
-}
+group = "com.warren"
+version = "0.1.0"
 
 repositories {
-    // PowBot first; allow snapshots
-    maven {
-        url = uri('https://repo.powbot.org/releases')
-        metadataSources {
-            mavenPom()
-            artifact()
-        }
-    }
-    mavenCentral()
-    google()
+  maven { url = uri('https://repo.powbot.org/releases') }
+  mavenCentral()
+  google()
 }
 
 dependencies {
-    // Use api if your library exposes PowBot types; otherwise switch to implementation
-    api('org.powbot:client-sdk:3+') { changing = true }
-    api('org.powbot:client-sdk-loader:3+') { changing = true }
-    api("org.slf4j:slf4j-api:2.0.+")
-    // Kotlin runtime only (no Kotlin plugin required)
-    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.9.25')
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
-
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
-
-    testImplementation 'junit:junit:4.13.2'
-}
-
-// Keep dynamic/changing versions fresh
-configurations.all {
-    resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
-    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            pom {
-                name = 'powbot-bt'
-                description = 'Behavior tree builder for powbot'
-            }
-        }
-    }
-    repositories {
-        // publish with: ./gradlew publishToMavenLocal
-        mavenLocal()
-    }
+  api 'org.powbot:client-sdk:3.+'
+  api 'org.powbot:client-sdk-loader:3.+'
+  api "org.slf4j:slf4j-api:2.0.+"
+  implementation 'com.google.guava:guava:31.1-jre'
+  implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
+  testImplementation 'junit:junit:4.13.2'
+  implementation "org.slf4j:slf4j-api:2.0.9"
 }
