@@ -6,13 +6,22 @@ abstract class BehaviorScript : AbstractScript() {
     private lateinit var behaviorTree: BehaviorTree
 
     override fun onStart() {
-        behaviorTree = behaviorTree()
+        try {
+            behaviorTree = behaviorTree()
+        } catch (e: Error) {
+            logger.info(e.stackTraceToString())
+//            controller.stop()
+        }
     }
 
     override fun poll() {
-        val s = behaviorTree.tick()
-        if (s != Status.RUNNING) {
-            behaviorTree.reset()
+        try {
+            val s = behaviorTree.tick()
+            if (s != Status.RUNNING) {
+                behaviorTree.reset()
+            }
+        } catch (e: Error) {
+            logger.info(e.message)
         }
     }
 

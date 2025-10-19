@@ -20,6 +20,7 @@ import org.powbot.api.rt4.Magic
 import org.powbot.api.rt4.Movement
 import org.powbot.api.rt4.Players
 import org.powbot.api.rt4.Prayer
+import org.powbot.api.rt4.Quests
 import org.powbot.api.rt4.Skills
 import org.powbot.api.rt4.stream.item.BankItemStream
 import org.powbot.api.rt4.stream.item.InventoryItemStream
@@ -274,10 +275,16 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             actorSupplier().alive()
         }
 
-        fun <T : Nillable<T>> isNil(supplier: () -> T) = condition {
-            val v = supplier()
-            v == v.nil()
+        fun questComplete(quest: () -> Quests.Quest) = condition {
+            quest().completed()
         }
+
+        fun <T> isNil(supplier: () -> T?) where T : Nillable<*> =
+            condition {
+                val v = supplier()
+                v == v?.nil()
+            }
+
 
         fun hasLineOfSight(aSupplier: () -> Actor<*>, bSupplier: () -> Actor<*>, dist: Int) = condition {
             Projection.hasLineOfSight(aSupplier(), bSupplier(), dist)

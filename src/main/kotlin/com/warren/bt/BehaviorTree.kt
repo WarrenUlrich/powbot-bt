@@ -75,6 +75,10 @@ open class BehaviorTree protected constructor(val root: Node) {
             }
         )
 
+        fun <T> forEach(items: Iterable<T>, block: Builder.(T) -> Unit) {
+            for (item in items) this.block(item)
+        }
+
         fun condition(name: String = "Condition", predicate: () -> Boolean) =
             attach(Condition(name, predicate))
 
@@ -82,6 +86,9 @@ open class BehaviorTree protected constructor(val root: Node) {
 
         fun sleepUntil(ms: Long, predicate: () -> Boolean) =
             attach(SleepUntil(predicate, ms))
+
+        fun sleepUntilIdle(idleMs: Long, timeoutMs: Long, predicate: () -> Boolean) =
+            attach(SleepUntilIdle(idleMs, timeoutMs, predicate))
 
         fun invert(block: Builder.() -> Unit) {
             nodeStack.addLast(Inverter())
