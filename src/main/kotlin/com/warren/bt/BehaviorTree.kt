@@ -5,14 +5,6 @@ import org.powbot.mobile.script.ScriptManager
 open class BehaviorTree protected constructor(val root: Node) {
     fun tick(): Status = root.tick()
 
-    fun run(): Status {
-        var s: Status
-        do {
-            s = tick()
-        } while (s == Status.RUNNING)
-        return s
-    }
-
     fun reset() = root.reset()
 
     companion object {
@@ -74,10 +66,6 @@ open class BehaviorTree protected constructor(val root: Node) {
                 Status.FAILURE
             }
         )
-
-        fun <T> forEach(items: Iterable<T>, block: Builder.(T) -> Unit) {
-            for (item in items) this.block(item)
-        }
 
         fun condition(name: String = "Condition", predicate: () -> Boolean) =
             attach(Condition(name, predicate))
