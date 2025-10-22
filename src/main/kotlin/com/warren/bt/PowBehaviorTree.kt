@@ -46,6 +46,18 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             ScriptManager.script()!!.logger.info(messageSupplier())
         }
 
+        fun debug(messageSupplier: () -> String) = succeed {
+            ScriptManager.script()!!.logger.debug(messageSupplier())
+        }
+
+        fun warn(messageSupplier: () -> String) = succeed {
+            ScriptManager.script()!!.logger.warn(messageSupplier())
+        }
+
+        fun error(messageSupplier: () -> String) = succeed {
+            ScriptManager.script()!!.logger.error(messageSupplier())
+        }
+
         fun inventoryFull() = condition { Inventory.isFull() }
 
         fun inventoryEmpty() = condition { Inventory.isEmpty() }
