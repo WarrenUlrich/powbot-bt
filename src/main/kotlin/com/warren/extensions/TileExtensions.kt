@@ -131,4 +131,45 @@ object TileExtensions {
 
         return Area(Tile(minX, minY, floor), Tile(maxX, maxY, floor))
     }
+
+    fun Tile.ring(radius: Int): Sequence<Tile> = sequence {
+        require(radius >= 0)
+        if (radius == 0) {
+            yield(this@ring); return@sequence
+        }
+        val z = floor()
+        val minX = x() - radius
+        val maxX = x() + radius
+        val minY = y() - radius
+        val maxY = y() + radius
+
+        for (cx in minX..maxX) {
+            yield(Tile(cx, maxY, z))
+            yield(Tile(cx, minY, z))
+        }
+
+        for (cy in (minY + 1) until maxY) {
+            yield(Tile(minX, cy, z))
+            yield(Tile(maxX, cy, z))
+        }
+    }
+
+    fun Tile.spiral(maxRadius: Int): Sequence<Tile> = sequence {
+        require(maxRadius >= 0)
+        yield(this@spiral)
+        for (r in 1..maxRadius) {
+            yieldAll(ring(r))
+        }
+    }
+
+    fun Tile.tilesWithin(radius: Int): Sequence<Tile> = sequence {
+        require(radius >= 0)
+        val z = floor()
+        for (dy in -radius..radius)
+            for (dx in -radius..radius)
+                yield(Tile(x() + dx, y() + dy, z))
+    }
+
+    fun Tile.scanFirst(maxRadius: Int, predicate: (Tile) -> Boolean): Tile? =
+        spiral(maxRadius).firstOrNull(predicate)
 }

@@ -26,7 +26,8 @@ class EquipmentLoadout internal constructor(
         var anyFailed = false
         val equipActions = setOf(
             "Equip",
-            "Wear"
+            "Wear",
+            "Wield"
         )
 
         Inventory.open()

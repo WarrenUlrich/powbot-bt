@@ -122,8 +122,9 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             Bank.nearest().distanceTo(Players.local()) < 10
         }
 
-        fun openBank() = condition {
-            Bank.open()
+        fun openBank() = selector {
+            isBankOpen()
+            condition { Bank.open() }
         }
 
         fun bankContains(func: (BankItemStream) -> BankItemStream) = condition {
@@ -340,12 +341,17 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             Prayer.prayersActive()
         }
 
-        fun prayerActive(effect: Prayer.Effect) = condition {
-            Prayer.prayerActive(effect)
+        fun prayerActive(func: () -> Prayer.Effect) = condition {
+            Prayer.prayerActive(func())
         }
 
         fun prayerPoints(pointsSupplier: () -> Int) = condition {
             Prayer.prayerPoints() >= pointsSupplier()
+        }
+
+        fun togglePrayer(func: () -> Prayer.Effect) = condition {
+            val effect = func()
+            Prayer.prayer(effect, !Prayer.prayerActive(effect))
         }
 
         fun skillLevel(skill: Skill, levelSupplier: () -> Int) {
