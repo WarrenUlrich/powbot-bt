@@ -33,8 +33,7 @@ object TileExtensions {
         }
     }
 
-    fun Tile.hasLineOfSightTo(to: Tile?, maxTiles: Int = 32): Boolean {
-        if (to == null) return false
+    fun Tile.hasLineOfSightTo(to: Tile, maxTiles: Int = 32): Boolean {
         if (floor() != to.floor()) return false
         if (this == to) return true
 
@@ -130,8 +129,6 @@ object TileExtensions {
         val maxX = maxOf(x1, x2)
         val maxY = maxOf(y1, y2)
 
-        // if Tile has a plane field, keep it the same (adjust to your Tile ctor)
         return Area(Tile(minX, minY, floor), Tile(maxX, maxY, floor))
     }
-
 }

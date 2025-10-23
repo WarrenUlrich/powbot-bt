@@ -1,7 +1,12 @@
 package com.warren.bt
 
-import com.warren.util.Projection
+import com.warren.extensions.ActorExtensions.hasLineOfSightTo
+import com.warren.loadouts.EquipmentLoadout
+import com.warren.loadouts.InventoryLoadout
+import com.warren.loadouts.ItemEntry
+import com.warren.loadouts.ItemLoadout
 import org.powbot.api.Area
+import org.powbot.api.Condition
 import org.powbot.api.Interactable
 import org.powbot.api.Locatable
 import org.powbot.api.Nameable
@@ -13,6 +18,7 @@ import org.powbot.api.rt4.Bank
 import org.powbot.api.rt4.Camera
 import org.powbot.api.rt4.Chat
 import org.powbot.api.rt4.Combat
+import org.powbot.api.rt4.Equipment
 import org.powbot.api.rt4.Game
 import org.powbot.api.rt4.Inventory
 import org.powbot.api.rt4.Item
@@ -149,6 +155,96 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
                     true
                 }
             }
+        }
+
+        fun bankContainsLoadout(func: () -> InventoryLoadout) = sequence {
+            isBankOpen()
+            condition {
+                val loadout = func()
+
+                fun qty(entry: ItemEntry, items: Iterable<Item>): Int {
+                    var q = 0
+                    for (i in items) {
+                        if (!entry.matches(i)) continue
+                        q += if (entry.stackable) i.stackSize() else 1
+                    }
+                    return q
+                }
+
+                val invEquip = Inventory.stream().list() + org.powbot.api.rt4.Equipment.stream().list()
+                val bankItems = Bank.stream().list()
+
+                for (entry in loadout.entries) {
+                    if (entry.optional) continue  // optional entries never block containment
+                    val have = qty(entry, invEquip)
+                    val needed = (entry.minQuantity - have).coerceAtLeast(0)
+                    if (needed == 0) continue
+
+                    val inBank = qty(entry, bankItems)
+                    if (inBank < needed) return@condition false
+                }
+                true
+            }
+        }
+
+        fun withdrawLoadout(func: () -> ItemLoadout) = condition {
+            if (!Bank.opened()) return@condition false
+
+            val loadout = func()
+
+            fun qty(entry: com.warren.loadouts.ItemEntry, items: Iterable<Item>): Int {
+                var q = 0
+                for (i in items) {
+                    if (!entry.matches(i)) continue
+                    q += if (entry.stackable) i.stackSize() else 1
+                }
+                return q
+            }
+
+            var ok = true
+
+            for (entry in loadout.entries) {
+                if (entry.optional) continue
+
+                val invEquip = Inventory.stream().list() + Equipment.stream().list()
+                val have = qty(entry, invEquip)
+                val need = (entry.maxQuantity - have).coerceAtLeast(0)
+                if (need <= 0) continue
+
+                val bankItem = entry.get(Bank.stream().list())
+                if (bankItem == Item.Nil) {
+                    ok = false
+                    continue
+                }
+
+                val success = Bank.withdraw(bankItem.name(), need)
+                if (!success) {
+                    ok = false
+                    continue
+                }
+
+                Condition.wait(
+                    {
+                        qty(entry, Inventory.stream().list() + Equipment.stream().list()) >= entry.minQuantity
+                    },
+                    100, 20
+                )
+            }
+
+            ok && Condition.wait({ loadout.getMissing().isEmpty() }, 100, 10)
+        }
+
+
+        fun hasLoadout(loadoutSupplier: () -> ItemLoadout) = condition {
+            loadoutSupplier().getMissing().isEmpty()
+        }
+
+        fun loadoutEquipped(loadoutSupplier: () -> EquipmentLoadout) = condition {
+            loadoutSupplier().getMissing(Equipment.stream().list()).isEmpty()
+        }
+
+        fun equipLoadout(loadoutSupplier: () -> EquipmentLoadout) = condition {
+            loadoutSupplier().equip()
         }
 
         fun inViewport(actorSupplier: () -> Viewable) = condition {
@@ -299,13 +395,19 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
 
 
         fun hasLineOfSight(aSupplier: () -> Actor<*>, bSupplier: () -> Actor<*>, dist: Int) = condition {
-            Projection.hasLineOfSight(aSupplier(), bSupplier(), dist)
+            aSupplier().hasLineOfSightTo(bSupplier(), dist)
         }
 
         fun hasLineOfSight(actorSupplier: () -> Actor<*>, dist: Int) =
             hasLineOfSight(actorSupplier, Players::local, dist)
 
+
         fun stopScript() = succeed {
+            ScriptManager.stop()
+        }
+
+        fun stopScript(messageSupplier: () -> String) = succeed {
+            ScriptManager.script()!!.logger!!.info(messageSupplier())
             ScriptManager.stop()
         }
     }
