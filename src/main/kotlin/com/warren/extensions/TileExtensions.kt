@@ -13,11 +13,12 @@ object TileExtensions {
         return ((x() shr 6) shl 8) or (y() shr 6)
     }
 
+    fun Tile.instanced(): Boolean {
+        return x() > 6400
+    }
+
     fun Tile.isLocal(): Boolean {
-        val base = Game.mapOffset()
-        val dx = x() - base.x()
-        val dy = y() - base.y()
-        return dx in 0..103 && dy in 0..103
+        return x() in 0..103 && y() in 0..103
     }
 
     fun Tile.local(): Tile {
@@ -170,6 +171,14 @@ object TileExtensions {
                 yield(Tile(x() + dx, y() + dy, z))
     }
 
-    fun Tile.scanFirst(maxRadius: Int, predicate: (Tile) -> Boolean): Tile? =
-        spiral(maxRadius).firstOrNull(predicate)
+    fun Tile.scanFirst(maxRadius: Int, predicate: (Tile) -> Boolean): Tile =
+        spiral(maxRadius).firstOrNull(predicate) ?: Tile.Nil
+
+    fun Tile.randomNearbyTile(radius: Int = 1, filter: (Tile) -> Boolean = { true }): Tile {
+        val candidates = tilesWithin(radius)
+            .filter { it != this && filter(it) }
+            .toList()
+            .shuffled()
+        return candidates.firstOrNull() ?: Tile.Nil
+    }
 }

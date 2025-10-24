@@ -11,6 +11,7 @@ import org.powbot.api.Interactable
 import org.powbot.api.Locatable
 import org.powbot.api.Nameable
 import org.powbot.api.Nillable
+import org.powbot.api.Notifications
 import org.powbot.api.Tile
 import org.powbot.api.Viewable
 import org.powbot.api.rt4.Actor
@@ -47,6 +48,23 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             val r = root ?: error("No root node defined. Provide at least one node.")
             return PowBehaviorTree(r)
         }
+
+        @PublishedApi
+        internal fun attachPublished(node: Node) {
+            attach(node) // protected in the superclass; OK to call from here
+        }
+
+        inline fun <reified T : Any> sleepUntilEvent(
+            timeoutMs: Long,
+            noinline predicate: (T) -> Boolean = { true }
+        ) = attachPublished(SleepUntilEvent(T::class.java, timeoutMs, predicate))
+
+        fun <T : Any> sleepUntilEvent(
+            eventClass: Class<T>,
+            timeoutMs: Long,
+            predicate: (T) -> Boolean = { true }
+        ) = attachPublished(SleepUntilEvent(eventClass, timeoutMs, predicate))
+
 
         fun info(messageSupplier: () -> String) = succeed {
             ScriptManager.script()!!.logger.info(messageSupplier())
@@ -97,8 +115,7 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         fun moveToBank() = condition { Movement.moveToBank().success }
 
         fun stepTo(locatableSupplier: () -> Locatable) = condition {
-            val loc = locatableSupplier()
-            Movement.step(loc)
+            Movement.step(locatableSupplier())
         }
 
         fun on(tileSupplier: () -> Tile) = condition {
@@ -290,6 +307,8 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             }
         }
 
+        fun attack(interactableSupplier: () -> Interactable) = interact(interactableSupplier, "Attack")
+
         fun fixCamera() = succeed {
             if (Camera.pitch() < 90) Camera.pitch(true)
             if (Camera.zoom > 10) Camera.moveZoomSlider(0.0)
@@ -413,8 +432,14 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         }
 
         fun stopScript(messageSupplier: () -> String) = succeed {
+            val message = messageSupplier()
+            Notifications.showNotification(message)
             ScriptManager.script()!!.logger!!.info(messageSupplier())
             ScriptManager.stop()
+        }
+
+        fun notification(messageSupplier: () -> String) = succeed {
+            Notifications.showNotification(messageSupplier())
         }
     }
 }
