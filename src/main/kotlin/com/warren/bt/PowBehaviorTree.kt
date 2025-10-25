@@ -249,7 +249,7 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
                 )
             }
 
-            ok && Condition.wait({ loadout.getMissing().isEmpty() }, 100, 10)
+            ok && Condition.wait({ loadout.getMissing().isEmpty() }, 100, 20)
         }
 
 
@@ -371,6 +371,20 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         fun togglePrayer(func: () -> Prayer.Effect) = condition {
             val effect = func()
             Prayer.prayer(effect, !Prayer.prayerActive(effect))
+        }
+
+        fun disablePrayers() = condition {
+            val activePrayers = Prayer.activePrayers()
+            if (activePrayers.isEmpty())
+                true
+
+            var anyFailed = false
+            for (active in Prayer.activePrayers()) {
+                if (!Prayer.prayer(active, false)) {
+                    anyFailed = true
+                }
+            }
+            anyFailed
         }
 
         fun skillLevel(skill: Skill, levelSupplier: () -> Int) {
