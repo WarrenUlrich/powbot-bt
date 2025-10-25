@@ -280,32 +280,37 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             interactable.click()
         }
 
-        fun interact(interactableSupplier: () -> Interactable, action: String) = condition {
+        fun interact(action: String, interactableSupplier: () -> Interactable) = condition {
             val interactable = interactableSupplier()
+
             when (interactable) {
                 is Item -> {
                     Inventory.open()
-
-                    if (interactable.actions().firstOrNull() == action)
+                    if (interactable.actions().firstOrNull() == action) {
                         interactable.click()
-                    else
+                    } else {
                         interactable.interact(action)
+                    }
                 }
 
                 else -> {
                     if (!interactable.inViewport()) {
-                        if (interactable !is Locatable) false
-
-                        Camera.turnTo(interactable as Locatable)
+                        val loc = interactable as? Locatable ?: return@condition false
+                        Camera.turnTo(loc)
                     }
 
-                    if (interactable is Nameable)
+                    if (interactable is Nameable) {
                         interactable.interact(action, interactable.name())
-                    else
+                    } else {
                         interactable.interact(action)
+                    }
                 }
             }
         }
+
+        // backwards compatibility
+        fun interact(interactableSupplier: () -> Interactable, action: String) =
+            interact(action, interactableSupplier)
 
         fun attack(interactableSupplier: () -> Interactable) = interact(interactableSupplier, "Attack")
 
