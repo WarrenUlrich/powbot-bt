@@ -27,7 +27,7 @@ class SleepUntilIdle(
         // Timeout check
         if (totalElapsed > timeoutNanos) return Status.FAILURE
 
-        val isIdle = player.animation() == -1
+        val isIdle = player.animation() == -1 && !player.inMotion()
 
         if (isIdle) {
             // Start or continue counting idle duration
