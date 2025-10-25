@@ -151,6 +151,7 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         fun withdraw(func: (BankItemStream) -> Item, amount: Int) {
             sequence {
                 isBankOpen()
+                condition { Bank.currentTab(0) }
                 condition { Bank.withdraw(func(Bank.stream()), amount) }
             }
         }
@@ -206,7 +207,8 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         }
 
         fun withdrawLoadout(func: () -> ItemLoadout) = condition {
-            if (!Bank.opened()) return@condition false
+            if (!Bank.opened()) false
+            if (!Bank.currentTab(0)) false
 
             val loadout = func()
 
