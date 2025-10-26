@@ -112,7 +112,10 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             movementSupplier().move().success
         }
 
-        fun moveToBank() = condition { Movement.moveToBank().success }
+        fun moveToBank() = selector {
+            atBank()
+            condition { Movement.moveToBank().success }
+        }
 
         fun stepTo(locatableSupplier: () -> Locatable) = condition {
             Movement.step(locatableSupplier())
@@ -141,7 +144,11 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
 
         fun openBank() = selector {
             isBankOpen()
-            condition { Bank.open() }
+            sequence {
+                moveToBank()
+                condition { Bank.open() }
+                sleepUntil(1000) { Bank.opened() }
+            }
         }
 
         fun bankContains(func: (BankItemStream) -> BankItemStream) = condition {
