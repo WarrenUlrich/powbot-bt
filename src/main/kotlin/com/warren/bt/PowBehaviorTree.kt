@@ -7,6 +7,7 @@ import com.warren.loadouts.ItemEntry
 import com.warren.loadouts.ItemLoadout
 import org.powbot.api.Area
 import org.powbot.api.Condition
+import org.powbot.api.Filter
 import org.powbot.api.Interactable
 import org.powbot.api.Locatable
 import org.powbot.api.Nameable
@@ -32,6 +33,7 @@ import org.powbot.api.rt4.Skills
 import org.powbot.api.rt4.stream.item.BankItemStream
 import org.powbot.api.rt4.stream.item.InventoryItemStream
 import org.powbot.api.rt4.walking.model.Skill
+import org.powbot.dax.teleports.utils.ItemFilters
 import org.powbot.mobile.script.ScriptManager
 
 class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
@@ -168,20 +170,46 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
                 isBankOpen()
                 condition {
                     val items = func(Inventory.stream()).list()
-                    if (items.isEmpty()) true
+                    if (items.isEmpty()) return@condition true
 
-                    val counts = items.groupingBy {
-                        it.id()
-                    }.fold(0) { acc, it -> acc + it.stack }
+                    val counts = items.groupingBy { it.id() }
+                        .fold(0) { acc, it -> acc + it.stackSize() }
+
                     for ((id, amt) in counts) {
                         if (amt <= 0) continue
-                        if (!Bank.deposit(id, amt)) false
+                        if (!Bank.deposit(id, amt)) return@condition false
                     }
-
                     true
                 }
             }
         }
+
+
+        fun depositAllExcept(except: (InventoryItemStream) -> InventoryItemStream) {
+            sequence {
+                isBankOpen()
+                condition {
+                    val allInv = Inventory.stream().list()
+                    if (allInv.isEmpty()) return@condition true
+
+                    val keep = except(Inventory.stream()).list()
+
+                    val totalById = allInv.groupingBy { it.id() }
+                        .fold(0) { acc, it -> acc + it.stackSize() }
+
+                    val keepById = keep.groupingBy { it.id() }
+                        .fold(0) { acc, it -> acc + it.stackSize() }
+
+                    for ((id, total) in totalById) {
+                        val depositAmt = (total - (keepById[id] ?: 0)).coerceAtLeast(0)
+                        if (depositAmt <= 0) continue
+                        if (!Bank.deposit(id, depositAmt)) return@condition false
+                    }
+                    true
+                }
+            }
+        }
+
 
         fun bankContainsLoadout(func: () -> InventoryLoadout) = sequence {
             isBankOpen()
@@ -229,7 +257,6 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
             }
 
             var ok = true
-
             for (entry in loadout.entries) {
                 if (entry.optional) continue
 
@@ -281,13 +308,13 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         fun click(interactableSupplier: () -> Interactable) = condition {
             val interactable = interactableSupplier()
             if (!interactable.inViewport()) {
-                if (interactable !is Locatable) false
-
-                Camera.turnTo(interactable as Locatable)
+                val loc = interactable as? Locatable ?: return@condition false
+                Camera.turnTo(loc)
             }
 
             interactable.click()
         }
+
 
         fun interact(action: String, interactableSupplier: () -> Interactable) = condition {
             val interactable = interactableSupplier()
@@ -388,22 +415,15 @@ class PowBehaviorTree private constructor(root: Node) : BehaviorTree(root) {
         }
 
         fun disablePrayers() = condition {
-            val activePrayers = Prayer.activePrayers()
-            if (activePrayers.isEmpty())
-                true
-
+            val active = Prayer.activePrayers()
+            if (active.isEmpty()) return@condition true
             var anyFailed = false
-            for (active in Prayer.activePrayers()) {
-                if (!Prayer.prayer(active, false)) {
-                    anyFailed = true
-                }
-            }
-            anyFailed
+            for (p in active) if (!Prayer.prayer(p, false)) anyFailed = true
+            !anyFailed
         }
 
-        fun skillLevel(skill: Skill, levelSupplier: () -> Int) {
-            Skills.level(skill) >= levelSupplier()
-        }
+        fun skillLevel(skill: Skill, levelSupplier: () -> Int) =
+            condition { Skills.level(skill) >= levelSupplier() }
 
         fun casting(spellSupplier: () -> Magic.Spell) = condition {
             spellSupplier().casting()
