@@ -3,7 +3,7 @@ plugins {
   id "org.jetbrains.kotlin.jvm" version "1.9.0"
 }
 
-group = "com.warren"
+group = "com.warrenu"
 version = "0.1.0"
 
 repositories {
